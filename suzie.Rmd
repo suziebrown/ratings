@@ -1,0 +1,76 @@
+---
+title: "Comparison of comparisons"
+author: "Suzie Brown"
+date: "22 November 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(BradleyTerry2)
+library(StatRank)
+```
+
+## Define functions
+```{r}
+# to simulate ratings-type data
+make.ratings <- function(n.alts, n.raters, strengths=NULL, sd.strengths=1, sd.noise=0.1) {
+  if (!is.null(strengths) && length(strengths)!=n.alts){stop("length of strengths vector is not equal to number of alternatives")}
+  if (is.null(strengths)){strengths <- rnorm(n.alts, 0, sd.strengths)}
+  ratings <- replicate(n.raters, strengths + rnorm(n.alts, 0, sd.noise))
+  list(ratings=ratings, strengths=strengths)
+}
+
+# to convert ratings to rankings
+ratings2ranking <- function(ratings) {
+  invrank <- apply(ratings, 2, order, decreasing=TRUE)
+  rank <- apply(invrank, 2, order)
+  rank
+}
+
+# to convert rankings to pairwise summary
+ranking2pairs <- function(ranking) {
+  n.alts <- nrow(ranking)
+  w <- matrix(NA, nrow=n.alts, ncol=n.alts)
+  for (i in 1:n.alts) {
+    for (j in 1:n.alts) {
+      w[i,j] <- sum(ranking[i,]<ranking[j,])
+    }
+  }
+  w
+}
+```
+
+## Preliminary experiments
+
+### Simulate some data and convert to each data type
+```{r}
+n.alts <- 20
+foo <- make.ratings(n.alts=n.alts, n.raters=10, strengths=1:n.alts)
+strengths <- foo$strengths
+true.ranks <- order(order(strengths, decreasing=TRUE))
+
+ratings <- foo$ratings
+ranks <- ratings2ranking(ratings)
+pairs <- ranking2pairs(ranks)
+rownames(pairs) <- 1:nrow(pairs)
+colnames(pairs) <- 1:nrow(pairs)
+```
+
+### Fit each model to the corresponding data type
+```{r}
+# ratings (linear model)
+s.hat.ratings <- rowMeans(ratings) # estimated strengths (MLE)
+r.hat.ratings <- order(order(s.hat, decreasing=TRUE))# estimated rankings
+
+# rankings (PLackett-Luce model)
+PLfit <- Estimation.PL.MLE(t(ranks))
+s.hat.ranks <- PLfit$Mean
+r.hat.ranks <- order(order(PLfit$Mean, decreasing=TRUE))
+
+# pair comparisons (Bradley-Terry model)
+pairs.long <- countsToBinomial(pairs)
+BTfit <- BTm(outcome=as.matrix(pairs.long[,3:4]), player1=pairs.long[,1], player2=pairs.long[,2])
+s.hat.pairs <- BTfit$coefficients
+r.hat.pairs <- order(order(c(1,as.vector(BTfit$coefficients)), decreasing=T))
+```
