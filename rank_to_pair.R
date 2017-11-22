@@ -3,6 +3,9 @@
 #' @param ranking a matrix of rankings, as returned by ratings2ranking
 #' 
 #' @return a matrix W where w_{i,j} is the number of rankings in which i beat j
+#' 
+#' @export ranking2pairs
+#' 
 
 ranking2pairs <- function(ranking) {
   n.alts <- nrow(ranking)
