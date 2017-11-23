@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(BradleyTerry2)
 library(StatRank)
+library(DescTools)
 ```
 
 ## Define functions
@@ -75,7 +76,7 @@ r.hat.ratings <- order(order(s.hat.ratings, decreasing=TRUE))# estimated ranking
 ```{r}
 rev.ranks <- apply(ranks,2,order, decreasing=TRUE)
 PLfit <- Estimation.PL.MLE(t(rev.ranks))
-s.hat.ranks <- PLfit$Mean
+s.hat.ranks <- log(PLfit$Mean) # we need to log the output from PL
 r.hat.ranks <- order(order(PLfit$Mean, decreasing=TRUE))
 ```
 
@@ -93,7 +94,7 @@ Some information has been lost in converting data types, so it is not possible t
 S.true <- scale(strengths)
 S.rating <- scale(s.hat.ratings)
 S.pair <- scale(s.hat.pairs)
-S.rank <- scale(log(s.hat.ranks)) # we need to log the output from PL
+S.rank <- scale(s.hat.ranks)
 ```
 Now make a plot.
 ```{r}
@@ -103,3 +104,23 @@ points(S.rank, type='l', lwd=2, col=4)
 points(S.pair, type='l', lwd=2, col="purple")
 legend("topleft", c("true", "ratings: LM", "ranks: PL", "pairs: BT"), lwd=2, col=c('grey',2,4,'purple'), lty=1)
 ```
+
+## Performance Metrics
+Kendall's tau distance is the number of discordant pairs between two vectors; we will use this as a distance measure (metric?) for rankings.
+```{r}
+rankdist.pairs <- ConDisPairs(table(true.ranks, r.hat.pairs))$D
+rankdist.ranks <- ConDisPairs(table(true.ranks, r.hat.ranks))$D
+rankdist.ratings <- ConDisPairs(table(true.ranks, r.hat.ratings))$D
+
+MSE.pairs <- mean((strengths-s.hat.pairs)^2)
+MSE.ranks <- mean((strengths-s.hat.ranks)^2)
+MSE.ratings <- mean((strengths-s.hat.ratings)^2)
+
+bias.pairs <- mean(strengths-s.hat.pairs)
+bias.ranks <- mean(strengths-s.hat.ranks)
+bias.ratings <- mean(strengths-s.hat.ratings)
+
+perftable <- data.frame(rankdist=c(rankdist.ratings,rankdist.ranks, rankdist.pairs), strengthMSE=c(MSE.ratings,MSE.ranks,MSE.pairs), strengthbias=c(bias.ratings,bias.ranks, bias.pairs))
+rownames(perftable) <- c("Ratings: LM", "Ranks: PL", "Pairs: BT")
+
+kable(perftable, digits=3, row.names=TRUE, col.names=c("Kendall tau", "MSE strengths", "Bias strengths"))
