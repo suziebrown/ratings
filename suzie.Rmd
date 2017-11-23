@@ -39,14 +39,20 @@ ranking2pairs <- function(ranking) {
   }
   w
 }
+
+# to normalise the strength vectors
+normalise <- function(x, k=2) {
+  xcentre <- x - mean(x)
+  xcentre/sum(xcentre^k)
+}
 ```
 
-## Preliminary experiments
+# Preliminary experiments
 
-### Simulate some data and convert to each data type
+## Simulate some data and convert to each data type
 ```{r}
 n.alts <- 20
-foo <- make.ratings(n.alts=n.alts, n.raters=10, strengths=1:n.alts)
+foo <- make.ratings(n.alts=n.alts, n.raters=10, strengths=1:n.alts, sd.noise=5)
 strengths <- foo$strengths
 true.ranks <- order(order(strengths, decreasing=TRUE))
 
@@ -57,20 +63,43 @@ rownames(pairs) <- 1:nrow(pairs)
 colnames(pairs) <- 1:nrow(pairs)
 ```
 
-### Fit each model to the corresponding data type
-```{r}
-# ratings (linear model)
-s.hat.ratings <- rowMeans(ratings) # estimated strengths (MLE)
-r.hat.ratings <- order(order(s.hat, decreasing=TRUE))# estimated rankings
+## Fit each model to the corresponding data type
 
-# rankings (PLackett-Luce model)
-PLfit <- Estimation.PL.MLE(t(ranks))
+### Ratings-type data (linear model)
+```{r}
+s.hat.ratings <- rowMeans(ratings) # estimated strengths (MLE)
+r.hat.ratings <- order(order(s.hat.ratings, decreasing=TRUE))# estimated rankings
+```
+
+### Rankings-type data (Plackett-Luce model)
+```{r}
+rev.ranks <- apply(ranks,2,order, decreasing=TRUE)
+PLfit <- Estimation.PL.MLE(t(rev.ranks))
 s.hat.ranks <- PLfit$Mean
 r.hat.ranks <- order(order(PLfit$Mean, decreasing=TRUE))
+```
 
-# pair comparisons (Bradley-Terry model)
-pairs.long <- countsToBinomial(pairs)
+### Pair comparison-type data (Bradley-Terry model)
+```{r}
+pairs.long <- countsToBinomial(pairs) # change contingency table to tall data format
 BTfit <- BTm(outcome=as.matrix(pairs.long[,3:4]), player1=pairs.long[,1], player2=pairs.long[,2])
-s.hat.pairs <- BTfit$coefficients
+s.hat.pairs <- c(0,BTfit$coefficients)
 r.hat.pairs <- order(order(c(1,as.vector(BTfit$coefficients)), decreasing=T))
+```
+
+## Compare the (normalised) estimated strengths
+Some information has been lost in converting data types, so it is not possible to recover the absolute strengths. We can recover relative strengths. To compare the output of each method we will centre and scale the strength vectors.
+```{r}
+S.true <- scale(strengths)
+S.rating <- scale(s.hat.ratings)
+S.pair <- scale(s.hat.pairs)
+S.rank <- scale(log(s.hat.ranks)) # we need to log the output from PL
+```
+Now make a plot.
+```{r}
+plot(S.true, type='l', lwd=2, col="grey", ylim=range(S.true)+0.5*c(-1,1), ylab="Strength", main="Estimated strength of each alternative")
+points(S.rating, type='l', lwd=2, col=2)
+points(S.rank, type='l', lwd=2, col=4)
+points(S.pair, type='l', lwd=2, col="purple")
+legend("topleft", c("true", "ratings: LM", "ranks: PL", "pairs: BT"), lwd=2, col=c('grey',2,4,'purple'), lty=1)
 ```
