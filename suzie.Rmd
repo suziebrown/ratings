@@ -122,5 +122,67 @@ bias.ratings <- mean(strengths-s.hat.ratings)
 
 perftable <- data.frame(rankdist=c(rankdist.ratings,rankdist.ranks, rankdist.pairs), strengthMSE=c(MSE.ratings,MSE.ranks,MSE.pairs), strengthbias=c(bias.ratings,bias.ranks, bias.pairs))
 rownames(perftable) <- c("Ratings: LM", "Ranks: PL", "Pairs: BT")
+perftable
+```
 
-kable(perftable, digits=3, row.names=TRUE, col.names=c("Kendall tau", "MSE strengths", "Bias strengths"))
+# Further Experiments
+
+## Varying number of alternatives and raters, and amount of noise
+```{r}
+par(mfrow=c(3,3), mar=rep(1,4))
+for (n.alts in c(5,20,100)){ 
+for (n.raters in c(5,20,100)) {
+  #make data
+  foo <- make.ratings(n.alts=n.alts, n.raters=n.raters, strengths=1:n.alts, sd.noise=5)
+  strengths <- foo$strengths
+  true.ranks <- order(order(strengths, decreasing=TRUE))
+  ratings <- foo$ratings
+  ranks <- ratings2ranking(ratings)
+  pairs <- ranking2pairs(ranks)
+  rownames(pairs) <- 1:nrow(pairs)
+  colnames(pairs) <- 1:nrow(pairs)
+  
+  # linear model (ratings-data)
+  s.hat.ratings <- rowMeans(ratings) # estimated strengths (MLE)
+  r.hat.ratings <- order(order(s.hat.ratings, decreasing=TRUE))# estimated rankings
+  
+  #PL model (ranks-data)
+  rev.ranks <- apply(ranks,2,order, decreasing=TRUE)
+  PLfit <- Estimation.PL.MLE(t(rev.ranks))
+  s.hat.ranks <- log(PLfit$Mean) # we need to log the output from PL
+  r.hat.ranks <- order(order(PLfit$Mean, decreasing=TRUE))
+  
+  # BT model (pairs-data)
+  pairs.long <- countsToBinomial(pairs) # change contingency table to tall data format
+  BTfit <- BTm(outcome=as.matrix(pairs.long[,3:4]), player1=pairs.long[,1], player2=pairs.long[,2])
+  s.hat.pairs <- c(0,BTfit$coefficients)
+  r.hat.pairs <- order(order(c(1,as.vector(BTfit$coefficients)), decreasing=T))
+  
+  #normalise strengths
+  S.true <- scale(strengths)
+  S.rating <- scale(s.hat.ratings)
+  S.pair <- scale(s.hat.pairs)
+  S.rank <- scale(s.hat.ranks)
+  
+  #make the plot
+  # plot(S.true, type='l', lwd=2, col="grey", ylim=range(S.true)+0.5*c(-1,1), ylab="Strength", main=paste("n.alts=", n.alts, ", n.raters=", n.raters))
+  # points(S.rating, type='l', lwd=1, col=2)
+  # points(S.rank, type='l', lwd=1, col=4)
+  # points(S.pair, type='l', lwd=1, col="purple")
+  # legend("topleft", c("true", "LM", "PL", "BT"), lwd=1, col=c('grey',2,4,'purple'), lty=1, cex=0.5)
+  
+  #print the summary table
+  rankdist.pairs <- ConDisPairs(table(true.ranks, r.hat.pairs))$D
+  rankdist.ranks <- ConDisPairs(table(true.ranks, r.hat.ranks))$D
+  rankdist.ratings <- ConDisPairs(table(true.ranks, r.hat.ratings))$D
+  MSE.pairs <- mean((S.true-S.pair)^2)
+  MSE.ranks <- mean((S.true-S.rank)^2)
+  MSE.ratings <- mean((S.true-S.rating)^2)
+  bias.pairs <- mean(S.true-S.pair)
+  bias.ranks <- mean(S.true-S.rank)
+  bias.ratings <- mean(S.true-S.rating)
+  perftable <- data.frame(rankdist=c(rankdist.ratings,rankdist.ranks, rankdist.pairs), strengthMSE=c(MSE.ratings,MSE.ranks,MSE.pairs), strengthbias=c(bias.ratings,bias.ranks, bias.pairs))
+  rownames(perftable) <- c("Ratings: LM", "Ranks: PL", "Pairs: BT")
+  print(perftable)
+}}
+```
