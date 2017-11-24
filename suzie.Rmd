@@ -178,11 +178,96 @@ for (n.raters in c(5,20,100)) {
   MSE.pairs <- mean((S.true-S.pair)^2)
   MSE.ranks <- mean((S.true-S.rank)^2)
   MSE.ratings <- mean((S.true-S.rating)^2)
-  bias.pairs <- mean(S.true-S.pair)
-  bias.ranks <- mean(S.true-S.rank)
-  bias.ratings <- mean(S.true-S.rating)
-  perftable <- data.frame(rankdist=c(rankdist.ratings,rankdist.ranks, rankdist.pairs), strengthMSE=c(MSE.ratings,MSE.ranks,MSE.pairs), strengthbias=c(bias.ratings,bias.ranks, bias.pairs))
+  # bias.pairs <- mean(S.true-S.pair)
+  # bias.ranks <- mean(S.true-S.rank)
+  # bias.ratings <- mean(S.true-S.rating)
+  perftable <- data.frame(rankdist=c(rankdist.ratings,rankdist.ranks, rankdist.pairs), strengthMSE=c(MSE.ratings,MSE.ranks,MSE.pairs))
   rownames(perftable) <- c("Ratings: LM", "Ranks: PL", "Pairs: BT")
   print(perftable)
 }}
 ```
+
+## Now a more interesting distribution of strengths
+Strengths will be clustered so that some are eaiser to tell apart than others.
+We will vary the amount of noise.
+```{r}
+par(mfrow=c(2,2), mar=rep(2,4))
+n.alts <- 20
+n.raters <- 10
+strengths <- runif(n.alts) #set true strength parameters
+
+#initialise variables
+count <- 0
+rankdist.ratings<-numeric(3)
+rankdist.ranks<- numeric(3)
+rankdist.pairs<-numeric(3)
+MSE.ratings<-numeric(3)
+MSE.ranks<-numeric(3)
+MSE.pairs<-numeric(3)
+bias.ratings<-numeric(3)
+bias.ranks<-numeric(3)
+bias.pairs<-numeric(3)
+
+for (sd.noise in c(0.01, 0.05, 0.1, 0.5)) {
+  count <- count + 1
+  
+  #make data
+  foo <- make.ratings(n.alts=n.alts, n.raters=n.raters, strengths=strengths, sd.noise=sd.noise)
+  strengths <- foo$strengths
+  true.ranks <- order(order(strengths, decreasing=TRUE))
+  ratings <- foo$ratings
+  ranks <- ratings2ranking(ratings)
+  pairs <- ranking2pairs(ranks)
+  rownames(pairs) <- 1:nrow(pairs)
+  colnames(pairs) <- 1:nrow(pairs)
+  
+  # linear model (ratings-data)
+  s.hat.ratings <- rowMeans(ratings) # estimated strengths (MLE)
+  r.hat.ratings <- order(order(s.hat.ratings, decreasing=TRUE))# estimated rankings
+  
+  #PL model (ranks-data)
+  rev.ranks <- apply(ranks,2,order, decreasing=TRUE)
+  PLfit <- Estimation.PL.MLE(t(rev.ranks))
+  s.hat.ranks <- log(PLfit$Mean) # we need to log the output from PL
+  r.hat.ranks <- order(order(PLfit$Mean, decreasing=TRUE))
+  
+  # BT model (pairs-data)
+  pairs.long <- countsToBinomial(pairs) # change contingency table to tall data format
+  BTfit <- BTm(outcome=as.matrix(pairs.long[,3:4]), player1=pairs.long[,1], player2=pairs.long[,2])
+  s.hat.pairs <- c(0,BTfit$coefficients)
+  r.hat.pairs <- order(order(c(1,as.vector(BTfit$coefficients)), decreasing=T))
+  
+  #normalise strengths & put in order to make plots more interpretable
+  S.true <- scale(strengths)[order(strengths)]
+  S.rating <- scale(s.hat.ratings)[order(strengths)]
+  S.pair <- scale(s.hat.pairs)[order(strengths)]
+  S.rank <- scale(s.hat.ranks)[order(strengths)]
+  
+  #make the plot
+  plot(S.true, type='l', lwd=3, col="grey", ylim=range(S.true)+0.5*c(-1,1), ylab="Strength", main=paste("n.alts=", n.alts, ", n.raters=", n.raters, ", sd.noise=", sd.noise))
+  points(S.rating, type='l', lwd=1, col=2)
+  points(S.rank, type='l', lwd=1, col=4)
+  points(S.pair, type='l', lwd=1, col="purple")
+  legend("topleft", c("true", "LM", "PL", "BT"), lwd=1, col=c('grey',2,4,'purple'), lty=1, cex=0.5)
+  
+  # calculate performance metrics
+  rankdist.pairs[count] <- ConDisPairs(table(true.ranks, r.hat.pairs))$D
+  rankdist.ranks[count] <- ConDisPairs(table(true.ranks, r.hat.ranks))$D
+  rankdist.ratings[count] <- ConDisPairs(table(true.ranks, r.hat.ratings))$D
+  MSE.pairs[count] <- mean((S.true-S.pair)^2)
+  MSE.ranks[count] <- mean((S.true-S.rank)^2)
+  MSE.ratings[count] <- mean((S.true-S.rating)^2)
+  # bias.pairs[count] <- mean(S.true-S.pair) #bias is not useful, always tiny due to normalising
+  # bias.ranks[count] <- mean(S.true-S.rank)
+  # bias.ratings[count] <- mean(S.true-S.rating)
+}
+```
+And print the performance statistics from each run.
+```{r}
+for (count in 1:4) {
+  perftable <- data.frame(Kendall=c(rankdist.ratings[count],rankdist.ranks[count], rankdist.pairs[count]), MSE=c(MSE.ratings[count],MSE.ranks[count],MSE.pairs[count]))
+  rownames(perftable) <- c("Ratings: LM", "Ranks: PL", "Pairs: BT")
+  print(perftable)
+}
+```
+
