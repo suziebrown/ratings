@@ -191,6 +191,7 @@ for (n.raters in c(5,20,100)) {
 Strengths will be clustered so that some are eaiser to tell apart than others.
 We will vary the amount of noise.
 ```{r}
+pdf("file.pdf",width=12,height=10) 
 par(mfrow=c(2,2), mar=rep(2,4))
 n.alts <- 20
 n.raters <- 10
@@ -244,11 +245,11 @@ for (sd.noise in c(0.01, 0.05, 0.1, 0.5)) {
   S.rank <- scale(s.hat.ranks)[order(strengths)]
   
   #make the plot
-  plot(S.true, type='l', lwd=3, col="grey", ylim=range(S.true)+0.5*c(-1,1), ylab="Strength", main=paste("n.alts=", n.alts, ", n.raters=", n.raters, ", sd.noise=", sd.noise))
+  plot(S.true, type='l', lwd=4, col="grey", ylim=range(S.true)+0.5*c(-1,1), ylab="Strength", main=paste("n.alts=", n.alts, ", n.raters=", n.raters, ", sd.noise=", sd.noise))
   points(S.rating, type='l', lwd=1, col=2)
   points(S.rank, type='l', lwd=1, col=4)
   points(S.pair, type='l', lwd=1, col="purple")
-  legend("topleft", c("true", "LM", "PL", "BT"), lwd=1, col=c('grey',2,4,'purple'), lty=1, cex=0.5)
+  legend("topleft", c("true", "LM", "PL", "BT"), lwd=c(4,1,1,1), col=c('grey',2,4,'purple'), lty=1, cex=1)
   
   # calculate performance metrics
   rankdist.pairs[count] <- ConDisPairs(table(true.ranks, r.hat.pairs))$D
@@ -261,6 +262,7 @@ for (sd.noise in c(0.01, 0.05, 0.1, 0.5)) {
   # bias.ranks[count] <- mean(S.true-S.rank)
   # bias.ratings[count] <- mean(S.true-S.rating)
 }
+dev.off()
 ```
 And print the performance statistics from each run.
 ```{r}
