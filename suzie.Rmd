@@ -273,3 +273,34 @@ for (count in 1:4) {
 }
 ```
 
+# What about ties?
+We'll assume that the strengths are still continuous, so the ratings data won't contain any ties.
+But we'll add a mechanism for ties to arise in the rankings and pair-comparisons. In particular, if two ratings are within $\delta$ of each other, they will be tied in the corresponding ranking. The parameter $\delta$ sets the "prevalence" of ties.
+
+## Redefine functions so they can produce ties
+```{r}
+ratings2ranking <- function(ratings, allow.ties=FALSE, delta=NULL) {
+  invrank <- apply(ratings, 2, order, decreasing=TRUE)
+  rank <- apply(invrank, 2, order)
+  if (allow.ties) {
+    if (!is.numeric(delta)) {stop("please provide threshold delta for tied ranks")}
+    rank <- apply(ratings, 2, rank.tie, delta=delta)
+  }
+  rank
+}
+
+rank.tie <- function(ratings, delta) {
+  rank <- order(order(ratings, decreasing=TRUE))
+  rank.tie <- rank
+  for (k in 1:(length(ratings)-1)){
+    which.tied <- which(rank>k & abs(ratings-ratings[rank==k])<delta)
+    if (length(which.tied)==0) {next} # no ties with this one
+    rank.tie[which.tied] <- rank.tie[rank==k]
+  }
+  rank.tie
+}
+```
+
+
+
+
