@@ -1,4 +1,4 @@
-#' Convert rankings to pairwise comparisons
+#' Convert rankings to pairwise comparisons (can't deal with ties allowed)
 #'
 #' @param ranking a matrix of rankings, as returned by ratings2ranking
 #' 

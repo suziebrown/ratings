@@ -318,6 +318,7 @@ ratings2pairs <- function(rating, allow.ties=FALSE, delta=NULL) {
 }
 ```
 
+Here's where the magic happens:
 ```{r}
 pdf("file.pdf",width=12,height=10) 
 par(mfrow=c(2,2), mar=rep(2,4))
@@ -338,7 +339,7 @@ pties.ratings<-numeric(3)
 pties.ranks<-numeric(3)
 pties.pairs<-numeric(3)
 
-for (delta in c(0.005, 0.01, 0.05, 0.1)) {
+for (delta in c(0.1, 0.2, 0.5, 0.8)) { #I changed the delta values since making plot btw
   count <- count + 1
   
   #make data
