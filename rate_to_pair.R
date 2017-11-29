@@ -13,7 +13,7 @@ ratings2pairs <- function(rating, allow.ties=FALSE, delta=NULL) {
   for (i in 1:n.alts) {
     for (j in 1:n.alts) {
       if (allow.ties){
-        if (!is.numeric(delta)) {stop("please provide threshold delta for tied ranks")}
+        if (!is.numeric(delta)) {stop("please provide threshold delta for tied comparisons")}
         w[i,j] <- sum(rating[i,] > rating[j,] + delta)
       }
       else{
